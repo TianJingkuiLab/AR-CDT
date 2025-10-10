@@ -181,7 +181,6 @@ def main():
     parser.add_argument('--abundance_csv', type=str, required=True, help="丰度文件 (物种x样本)")
     parser.add_argument('--metadata_csv', type=str, required=True, help="元数据文件")
     parser.add_argument('--disease_label', type=int, default=None, help="指定单个疾病标签进行二分类，否则进行多分类")
-    # --- 新增代码: 添加阈值参数 ---
     parser.add_argument('--threshold', type=float, default=0.03, help="物种丰度过滤阈值")
     parser.add_argument('--bottleneck_dim', type=int, default=64, help="降维后的特征维度")
     parser.add_argument('--arconv_out_c', type=int, default=64, help="ARConv路径的输出通道数")
@@ -212,7 +211,6 @@ def main():
         print("--- 检测到丰度数据为百分比格式，正在转换为比例 (除以100)... ---")
         df_abundance = df_abundance / 100.0
     
-    # --- 新增代码: 应用物种丰度过滤 ---
     if args.threshold > 0:
         print(f"--- 正在应用物种丰度过滤 (阈值: {args.threshold}) ---")
         original_num_species = df_abundance.shape[1]
@@ -236,7 +234,7 @@ def main():
         print("--- 模式: 多分类 ---")
 
     common_samples = df_abundance.index.intersection(df_metadata['sampleID'])
-    if len(common_samples) == 0: sys.exit("\n【致命错误】: 找不到任何共同的样本ID！请检查文件。")
+    if len(common_samples) == 0: sys.exit("\n错误: 找不到任何共同的样本ID！请检查文件。")
     
     print(f"成功找到 {len(common_samples)} 个共同样本。")
     X_raw = df_abundance.loc[common_samples].values
@@ -317,4 +315,5 @@ def main():
 
 
 if __name__ == '__main__':  
+
     main()
