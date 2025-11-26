@@ -1,5 +1,3 @@
-# 文件名: arconv_with_dynamictanh.py
-# 描述: 将最终分类器中的 BatchNorm1d 和 GELU 替换为 DynamicTanh 模块。
 
 import pandas as pd
 import numpy as np
@@ -492,4 +490,5 @@ if __name__ == '__main__':
             probs = torch.exp(outputs)
         return loss, probs
         
+
     main()
