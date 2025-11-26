@@ -121,7 +121,6 @@ class SimpleCNN(nn.Module):
             nn.BatchNorm2d(outc),
             nn.ReLU(inplace=True)
         )
-    # 保持与MultiViewARConv的输入参数一致，即使我们不用它们
     def forward(self, x, epoch, hw_range):
         return self.conv_block(x)
 
@@ -129,7 +128,7 @@ class SimpleCNN(nn.Module):
 # --- 主模型 (集成所有消融开关) ---
 # =====================================================================================
 class ARConvNet(nn.Module):
-    # --- 【修改1】: 在构造函数中增加所有消融参数 ---
+    # 在构造函数中增加所有消融参数 ---
     def __init__(self, num_features, num_classes, bottleneck_dim, arconv_out_c, dropout_rate,
                  ablate_cd_tanh=False, ablate_arconv=False, arconv_views=3):
         super(ARConvNet, self).__init__()
@@ -138,7 +137,7 @@ class ARConvNet(nn.Module):
         
         self.bottleneck = nn.Linear(num_features, self.bottleneck_dim)
 
-        # --- 【修改2】: 根据 ablate_arconv 开关决定使用哪个空间特征提取器 ---
+        # 根据 ablate_arconv 开关决定使用哪个空间特征提取器 ---
         if ablate_arconv:
             # 如果消融AR-Conv，就用一个简单的标准CNN替换它
             self.spatial_expert = SimpleCNN(inc=1, outc=arconv_out_c)
@@ -155,7 +154,7 @@ class ARConvNet(nn.Module):
         final_dim = arconv_out_c
         classifier_hidden_dim = final_dim // 2
         
-        # --- 【修改3】: 根据 ablate_cd_tanh 开关决定使用哪个分类器结构 ---
+        # 根据 ablate_cd_tanh 开关决定使用哪个分类器结构 ---
         if ablate_cd_tanh:
             # 如果消融CD-Tanh，就使用原始的BatchNorm+GELU版本
             self.final_classifier = nn.Sequential(
@@ -180,7 +179,6 @@ class ARConvNet(nn.Module):
         img_side = int(math.sqrt(self.bottleneck_dim))
         x_image = x_bottleneck.view(-1, 1, img_side, img_side)
         
-        # 这里的代码无需修改，它会根据__init__中的选择，自动调用正确的模块
         spatial_features = self.spatial_expert(x_image, self.epoch, (img_side, img_side))
         
         final_features = self.pool(spatial_features).flatten(1)
@@ -188,9 +186,8 @@ class ARConvNet(nn.Module):
         return F.log_softmax(output, dim=1)
 
 # =====================================================================================
-# --- 辅助函数区和主执行函数 (保持不变) ---
+# --- 辅助函数区和主执行函数 ---
 # =====================================================================================
-# ... (FocalLoss, clr_transform, evaluate, main 函数等都保持不变)
 class FocalLoss(nn.Module):
     def __init__(self, alpha=None, gamma=2., reduction='mean'):
         super(FocalLoss, self).__init__()
@@ -212,14 +209,12 @@ def clr_transform(X_raw, pseudocount=1e-6):
     X_clr = np.log(X_plus_pseudocount / geometric_means)
     return np.nan_to_num(X_clr, nan=0.0, posinf=0.0, neginf=0.0)
 
-# 新版本 (请用这段代码替换上面的旧版本)
 def evaluate(model, X_data, y_data, criterion, device):
     model.eval()
     with torch.no_grad():
         outputs = model(X_data)
         loss = criterion(outputs, y_data) if criterion else None
         probs = torch.exp(outputs)
-    # 主要修改在这里：额外返回 Numpy 格式的标签和概率，以供后续使用
     return loss, probs, y_data.cpu().numpy(), probs.cpu().numpy()
 
 def run_arconvnet_fold(X_train_raw, y_train_raw, X_val_raw, y_val_raw, num_classes, args):
@@ -351,7 +346,7 @@ def main():
     parser.add_argument('--patience', type=int, default=40, help="早停的耐心轮数")
     parser.add_argument('--gamma', type=float, default=2.0, help="Focal Loss的聚焦参数gamma")
     
-    # --- 【修改4】: 新增所有命令行消融开关 ---
+    # 新增所有命令行消融开关 ---
     parser.add_argument('--ablate_cd_tanh', action='store_true',
                         help="如果设置此项, 将禁用 ChannelwiseDynamicTanh 模块, 换回BatchNorm+GELU。")
     parser.add_argument('--ablate_arconv', action='store_true',
@@ -361,7 +356,6 @@ def main():
     
     args = parser.parse_args()
     
-    # ... (后续代码基本不变) ...
     img_side = int(math.sqrt(args.bottleneck_dim))
     if img_side * img_side != args.bottleneck_dim:
         sys.exit(f"错误: bottleneck_dim ({args.bottleneck_dim}) 必须是一个可以完美开方的数字。")
@@ -373,7 +367,7 @@ def main():
     df_abundance_raw = pd.read_csv(args.abundance_csv, index_col=0)
     df_abundance = df_abundance_raw.transpose()
 
-    if df_abundance.sum(axis=1).median() > 90: # 用中位数检查，比平均值更鲁棒
+    if df_abundance.sum(axis=1).median() > 90:
         print("--- 检测到丰度数据为百分比格式，正在转换为比例 (除以100)... ---")
         df_abundance = df_abundance / 100.0
 
